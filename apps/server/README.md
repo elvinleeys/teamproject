@@ -23,6 +23,9 @@
 # 서버만 켜기 (Node 24는 .ts를 그대로 실행)
 SPACELOG_TOKEN=dev SPACELOG_DEV_ORIGIN=http://localhost:5173 SPACELOG_VAULT_DIR=./.vault node apps/server/index.ts
 
+# 데모 시드: 빈 보관함에 7일 전 별 3개 + 이번 주 별 20개 (DEMO 1장). 별이 이미 있으면 거부한다
+node apps/server/vault/seed.ts ./.vault
+
 # 웹은 실제 서버로: web/.env.local 에 API_TARGET=http://127.0.0.1:47800
 # → 브라우저에서 http://localhost:5173/#/?token=dev
 ```
