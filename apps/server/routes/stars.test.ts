@@ -95,6 +95,35 @@ describe("POST /api/stars", () => {
     assert.ok(s.storagePath!.endsWith(".txt") && existsSync(join(vault.vaultDir, s.storagePath!)));
   });
 
+  it("PATCH: 확인 카드의 행성·메모를 여러 별에 한 번에 적용한다", async () => {
+    const patch = async (body: object) => {
+      const res = await fetch(`http://127.0.0.1:${port}/api/stars`, {
+        method: "PATCH",
+        headers: { "x-session-token": TOKEN, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      return { status: res.status, json: await res.json() };
+    };
+    const { json } = await post(form(["a.bin", "", "patch-a"], ["b.bin", "", "patch-b"]));
+    const ids = json.created.map((s) => s.id);
+    const study = vault.listPlanets().find((p) => p.name === "공부")!.id;
+
+    const ok = await patch({ ids, planetId: study, memo: "토익 단어" });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(ok.json.stars.map((s: { planetId: string; memo: string }) => [s.planetId, s.memo]), [[study, "토익 단어"], [study, "토익 단어"]]);
+    assert.equal(vault.getStar(ids[0])?.memo, "토익 단어");
+
+    await patch({ ids, memo: null });
+    assert.equal(vault.getStar(ids[1])?.memo, null, "memo null이면 지운다");
+    assert.equal(vault.getStar(ids[1])?.planetId, study, "planetId 없으면 그대로");
+
+    assert.equal((await patch({ ids: [ids[0], "없는 별"], memo: "x" })).status, 404);
+    assert.equal(vault.getStar(ids[0])?.memo, null, "없는 id가 섞이면 아무것도 바꾸지 않는다");
+    assert.equal((await patch({ ids, planetId: "없는 행성" })).status, 404);
+    assert.equal((await patch({ ids, memo: "가".repeat(141) })).status, 400);
+    assert.equal((await patch({ ids: [] })).status, 400);
+  });
+
   it("틀린 요청은 INVALID_REQUEST", async () => {
     for (const body of [{ kind: "link", url: "javascript:alert(1)" }, { kind: "image" }, new FormData()]) {
       const { status, json } = await post(body);

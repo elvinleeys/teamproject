@@ -202,6 +202,32 @@ export function openVault(vaultDir: string, now: () => Date = () => new Date()) 
     listPlanets(): Planet[] {
       return planetsStmt.all().map((r) => plain<Planet>(r));
     },
+    planetExists(id: string): boolean {
+      return !!db.prepare("SELECT 1 FROM planets WHERE id = ?").get(id);
+    },
+    /** 여러 별의 행성·메모를 한 트랜잭션으로 바꾼다. 없는 id가 하나라도 있으면 아무것도 바꾸지 않고 null */
+    updateStars(ids: string[], change: { planetId?: string; memo?: string | null }, atUtc: string): Star[] | null {
+      // node:sqlite는 SQL에 없는 이름의 파라미터를 거부하므로 바꾸는 필드만 넣는다
+      const values: Record<string, string | null> = { atUtc };
+      if (change.planetId !== undefined) values.planetId = change.planetId;
+      if (change.memo !== undefined) values.memo = change.memo;
+      const sets = Object.keys(values).map((k) => (k === "atUtc" ? "updatedAtUtc = :atUtc" : `${k} = :${k}`));
+      const stmt = db.prepare(`UPDATE stars SET ${sets.join(", ")} WHERE id = :id`);
+      db.exec("BEGIN");
+      try {
+        for (const id of ids) {
+          if (stmt.run({ ...values, id }).changes === 0) {
+            db.exec("ROLLBACK");
+            return null;
+          }
+        }
+        db.exec("COMMIT");
+      } catch (err) {
+        db.exec("ROLLBACK");
+        throw err;
+      }
+      return ids.map((id) => plain<Star>(getStarStmt.get(id)));
+    },
     /** 같은 내용(SHA-256)의 별과 그 행성 이름 (P 2-6 중복 검사) */
     findStarBySha256(sha256: string): { star: Star; planetName: string } | null {
       const row = findShaStmt.get(sha256);

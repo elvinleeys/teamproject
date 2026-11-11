@@ -1,9 +1,11 @@
 // 기록 넣기 (SPEC 2-6, 3-2). 수집 앱이 부른다.
 //   POST /api/stars  multipart 필드 "files" (최대 20개)  또는  JSON { kind: "text", text } | { kind: "link", url }
 //   → CreateStarsResponse. 일부만 실패해도 나머지는 저장한다 (P 3-3)
+//   PATCH /api/stars  { ids, planetId?, memo? } → { stars }. 넣은 직후 확인 카드 일괄 적용 (SPEC 2-6)
 import type { IncomingMessage } from "node:http";
 import { Readable } from "node:stream";
-import type { CreateStarsResponse } from "@spacelog/shared/types";
+import { localDate } from "@spacelog/shared/period";
+import type { CreateStarsResponse, StarsResponse } from "@spacelog/shared/types";
 import type { RouteHandler } from "../app.ts";
 import { isObject, readJson } from "../http/body.ts";
 import { RouteError } from "../http/routeError.ts";
@@ -65,7 +67,33 @@ export async function createStars(vault: Vault, req: IncomingMessage, now: Date)
   throw RouteError.badRequest('본문은 { kind: "text", text } 또는 { kind: "link", url } 이어야 해요');
 }
 
+/** 수집 앱 확인 카드 메모 상한 (types.ts BulkUpdateStarsRequest) */
+export const CONFIRM_MEMO_MAX = 140;
+/** 한 번에 넣는 파일이 20개라 확인 카드도 그 이하지만, 여유 있게 받는다 */
+const MAX_BULK_IDS = 100;
+
+export async function bulkUpdateStars(vault: Vault, req: IncomingMessage, now: Date): Promise<StarsResponse> {
+  const body = await readJson(req, 64 * 1024);
+  if (!isObject(body)) throw RouteError.badRequest("본문이 객체가 아니에요");
+  const { ids, planetId, memo } = body;
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > MAX_BULK_IDS || !ids.every((id) => typeof id === "string" && id)) {
+    throw RouteError.badRequest("ids가 올바르지 않아요");
+  }
+  if (planetId !== undefined && typeof planetId !== "string") throw RouteError.badRequest("planetId가 문자열이 아니에요");
+  if (memo !== undefined && memo !== null && (typeof memo !== "string" || memo.length > CONFIRM_MEMO_MAX)) {
+    throw RouteError.badRequest(`memo는 ${CONFIRM_MEMO_MAX}자 이하 문자열이어야 해요`);
+  }
+  if (planetId !== undefined && !vault.planetExists(planetId)) throw RouteError.of("NOT_FOUND");
+  const change = { planetId: planetId as string | undefined, memo: memo === undefined ? undefined : (memo as string | null) || null };
+  const stars = vault.updateStars(ids as string[], change, now.toISOString());
+  if (!stars) throw RouteError.of("NOT_FOUND");
+  return { stars: stars.map((s) => ({ ...s, localDate: localDate(s.createdAtUtc, now), originalMissing: vault.originalMissing(s) })) };
+}
+
 export function starRoutes(vault: Vault, deps: { now?: () => Date } = {}): Record<string, RouteHandler> {
   const now = deps.now ?? (() => new Date());
-  return { "POST /api/stars": (req) => createStars(vault, req, now()) };
+  return {
+    "POST /api/stars": (req) => createStars(vault, req, now()),
+    "PATCH /api/stars": (req) => bulkUpdateStars(vault, req, now()),
+  };
 }
