@@ -7,6 +7,7 @@ import { configFromEnv } from "./config.ts";
 import { exportRoutes } from "./routes/export.ts";
 import { mountRoutes } from "./routes/mount.ts";
 import { rediscoveryRoutes } from "./routes/rediscovery.ts";
+import { universeRoutes } from "./routes/universe.ts";
 import { openVault } from "./vault/db.ts";
 
 type ParentPort = { postMessage(message: unknown): void };
@@ -23,6 +24,7 @@ try {
     const vault = openVault(config.vaultDir);
     mountRoutes(routes, rediscoveryRoutes(vault));
     mountRoutes(routes, exportRoutes(vault));
+    mountRoutes(routes, universeRoutes(vault));
   }
   const { port } = await startServer(config);
   report({ type: "listening", port });

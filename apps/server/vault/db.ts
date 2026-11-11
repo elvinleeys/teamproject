@@ -1,12 +1,12 @@
 // 보관함 DB (SPEC 2-7): {vaultDir}/archive.db + originals/ · thumbnails/ · tmp/.
 // node:sqlite(Node 24 내장)를 쓴다. 컬럼 이름 = Star·Planet 필드 이름이라 행을 그대로 돌려준다.
-// routes/의 RediscoveryRepo(#7)·ExportRepo(#8)를 그대로 구현한다 (index.ts에서 연결).
+// routes/의 RediscoveryRepo(#7)·ExportRepo(#8)·UniverseRepo를 그대로 구현한다 (index.ts에서 연결).
 import { randomBytes } from "node:crypto";
-import { mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { Planet, RediscoveryEvent, RediscoveryPick, Star } from "@spacelog/shared/types";
-import { readTextHead } from "../export/readText.ts";
+import { readTextHead, vaultFilePath } from "../export/readText.ts";
 import type { PickCandidate } from "../rediscovery/pick.ts";
 
 export const DB_FILE = "archive.db";
@@ -200,6 +200,16 @@ export function openVault(vaultDir: string, now: () => Date = () => new Date()) 
     },
     listPlanets(): Planet[] {
       return planetsStmt.all().map((r) => plain<Planet>(r));
+    },
+    countStarsByPlanet(): Record<string, number> {
+      const rows = db.prepare("SELECT planetId, COUNT(*) AS n FROM stars GROUP BY planetId").all();
+      return Object.fromEntries(rows.map((r) => [String(r.planetId), Number(r.n)]));
+    },
+    /** 원본이 있어야 하는 별(storagePath 있음)인데 보관함에 파일이 없으면 true */
+    originalMissing(star: Star): boolean {
+      if (!star.storagePath) return false;
+      const file = vaultFilePath(vaultDir, star.storagePath);
+      return !file || !existsSync(file);
     },
     /** 자동 배정용 (만든 순서). 미분류 포함 */
     listPlanetKeywords(): { id: string; name: string; keywords: PlanetKeywords }[] {
