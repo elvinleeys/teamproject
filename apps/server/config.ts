@@ -8,6 +8,8 @@ export interface ServerConfig {
   webDir: string | null;
   /** 개발 중 Vite 개발 서버 Origin. 있을 때만 허용한다 */
   devOrigin: string | null;
+  /** 보관함 폴더 (SPEC 2-7). 없으면 DB를 쓰는 API를 붙이지 않는다 */
+  vaultDir: string | null;
 }
 
 export const DEFAULT_PORT = 47800;
@@ -25,5 +27,6 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfi
     basePort,
     webDir: env.SPACELOG_WEB_DIR || null,
     devOrigin: env.SPACELOG_DEV_ORIGIN || null,
+    vaultDir: env.SPACELOG_VAULT_DIR || null,
   };
 }

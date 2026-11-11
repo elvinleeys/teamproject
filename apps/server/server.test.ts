@@ -34,7 +34,7 @@ describe("서버 보안·정적 파일", () => {
   writeFileSync(join(webDir, "assets", "app-abc123.js"), "console.log(1)");
 
   before(async () => {
-    const config: ServerConfig = { token: TOKEN, basePort: 0, webDir, devOrigin: "http://localhost:5173" };
+    const config: ServerConfig = { token: TOKEN, basePort: 0, webDir, devOrigin: "http://localhost:5173", vaultDir: null };
     ({ server, port } = await startServer(config));
   });
   after(() => server.close());
@@ -110,11 +110,11 @@ describe("설정·포트", () => {
   it("토큰이 없으면 시작을 거부한다", () => {
     assert.throws(() => configFromEnv({}), /SPACELOG_TOKEN/);
     assert.throws(() => configFromEnv({ SPACELOG_TOKEN: "t", SPACELOG_PORT: "abc" }), /SPACELOG_PORT/);
-    assert.deepEqual(configFromEnv({ SPACELOG_TOKEN: "t" }), { token: "t", basePort: 47800, webDir: null, devOrigin: null });
+    assert.deepEqual(configFromEnv({ SPACELOG_TOKEN: "t" }), { token: "t", basePort: 47800, webDir: null, devOrigin: null, vaultDir: null });
   });
 
   it("개발 Origin이 없으면 Vite 주소도 막는다", async () => {
-    const { server, port } = await startServer({ token: TOKEN, basePort: 0, webDir: null, devOrigin: null });
+    const { server, port } = await startServer({ token: TOKEN, basePort: 0, webDir: null, devOrigin: null, vaultDir: null });
     try {
       assert.equal((await call(port, "/api/health", { "x-session-token": TOKEN, origin: "http://localhost:5173" })).status, 403);
     } finally {
@@ -127,7 +127,7 @@ describe("설정·포트", () => {
     await new Promise<void>((ok) => blocker.listen(0, "127.0.0.1", ok));
     const taken = (blocker.address() as { port: number }).port;
     try {
-      const { server, port } = await startServer({ token: TOKEN, basePort: taken, webDir: null, devOrigin: null });
+      const { server, port } = await startServer({ token: TOKEN, basePort: taken, webDir: null, devOrigin: null, vaultDir: null });
       try {
         assert.ok(port > taken && port < taken + 10, `${port}`);
         assert.equal((await call(port, "/api/health", { "x-session-token": TOKEN })).status, 200);
@@ -153,7 +153,7 @@ describe("라우트·본문", () => {
     routes.set(added[3], () => {
       throw RouteError.of("PLANET_SYSTEM");
     });
-    ({ server, port } = await startServer({ token: TOKEN, basePort: 0, webDir: null, devOrigin: null }));
+    ({ server, port } = await startServer({ token: TOKEN, basePort: 0, webDir: null, devOrigin: null, vaultDir: null }));
   });
   after(() => {
     for (const k of added) routes.delete(k);

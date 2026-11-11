@@ -134,7 +134,7 @@ describe("서버에 붙여 HTTP로 호출", () => {
 
   before(async () => {
     unmount = mountRoutes(routes, { ...rediscoveryRoutes(repo, { now: () => NOW, newId: () => "ev1" }), ...exportRoutes(repo, { now: () => NOW }) });
-    ({ server, port } = await startServer({ token: TOKEN, basePort: 0, webDir: null, devOrigin: null }));
+    ({ server, port } = await startServer({ token: TOKEN, basePort: 0, webDir: null, devOrigin: null, vaultDir: null }));
   });
   after(() => {
     server.close();
