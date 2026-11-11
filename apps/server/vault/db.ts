@@ -177,6 +177,7 @@ export function openVault(vaultDir: string, now: () => Date = () => new Date()) 
   const starsSinceStmt = db.prepare("SELECT * FROM stars WHERE createdAtUtc >= ? ORDER BY createdAtUtc, id");
   const starsBetweenStmt = db.prepare("SELECT * FROM stars WHERE createdAtUtc >= ? AND createdAtUtc < ? ORDER BY createdAtUtc, id");
   const planetsStmt = db.prepare(PLANET_SELECT);
+  const findShaStmt = db.prepare("SELECT s.*, p.name AS planetName FROM stars s JOIN planets p ON p.id = s.planetId WHERE s.sha256 = ? LIMIT 1");
   const keywordsStmt = db.prepare("SELECT id, name, keywords FROM planets ORDER BY createdAtUtc, rowid");
 
   const vault = {
@@ -200,6 +201,13 @@ export function openVault(vaultDir: string, now: () => Date = () => new Date()) 
     },
     listPlanets(): Planet[] {
       return planetsStmt.all().map((r) => plain<Planet>(r));
+    },
+    /** 같은 내용(SHA-256)의 별과 그 행성 이름 (P 2-6 중복 검사) */
+    findStarBySha256(sha256: string): { star: Star; planetName: string } | null {
+      const row = findShaStmt.get(sha256);
+      if (!row) return null;
+      const { planetName, ...star } = plain<Star & { planetName: string }>(row);
+      return { star, planetName };
     },
     countStarsByPlanet(): Record<string, number> {
       const rows = db.prepare("SELECT planetId, COUNT(*) AS n FROM stars GROUP BY planetId").all();
