@@ -3,7 +3,7 @@
 //   POST /api/rediscovery/events  → null (기록만)
 // 저장소는 인터페이스로 받는다. DB(개발 B, #4 2/4)가 이 인터페이스를 구현하면 연결만 하면 된다.
 import { randomUUID } from "node:crypto";
-import { addDays, toLocalDateString } from "@spacelog/shared/period";
+import { addDays, localDate, toLocalDateString } from "@spacelog/shared/period";
 import type { RediscoveryEvent, RediscoveryPick, RediscoveryTodayResponse, Star } from "@spacelog/shared/types";
 import type { RouteHandler } from "../app.ts";
 import { isObject, readJson } from "../http/body.ts";
@@ -47,7 +47,8 @@ export function getTodayPick(repo: RediscoveryRepo, now: Date): RediscoveryToday
   }
   if (!pick.starId || !pick.daysAgo) return null;
   const star = repo.getStar(pick.starId);
-  return star ? { star, daysAgo: pick.daysAgo } : null;
+  // /api/universe와 같이 현지 날짜를 채워 준다 (PR #46 리뷰 1)
+  return star ? { star: { ...star, localDate: localDate(star.createdAtUtc, now) }, daysAgo: pick.daysAgo } : null;
 }
 
 /** 본문 검사: { starId, channel, type } */
@@ -67,6 +68,7 @@ export function rediscoveryRoutes(repo: RediscoveryRepo, deps: RediscoveryDeps =
     "GET /api/rediscovery/today": () => getTodayPick(repo, now()),
     "POST /api/rediscovery/events": async (req) => {
       const body = parseEventBody(await readJson(req, 4 * 1024));
+      if (!repo.getStar(body.starId)) throw RouteError.of("NOT_FOUND"); // 없는 별 이벤트는 저장하지 않는다 (PR #46 리뷰 2)
       const at = now();
       repo.addEvent({ id: newId(), localDate: toLocalDateString(at), atUtc: at.toISOString(), ...body });
       return null;

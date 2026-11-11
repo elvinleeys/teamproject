@@ -74,7 +74,7 @@ describe("재발견 today", () => {
   it("최근 30일 안에 픽된 별은 뺀다", () => {
     const repo = new MemoryRepo([star("a", "2026-11-04T03:00:00Z"), star("b", "2026-10-28T03:00:00Z")]);
     repo.savePick({ localDate: "2026-11-01", starId: "a", daysAgo: 7, pickedAtUtc: "" });
-    assert.deepEqual(getTodayPick(repo, NOW), { star: repo.getStar("b"), daysAgo: 14 });
+    assert.deepEqual(getTodayPick(repo, NOW), { star: { ...repo.getStar("b"), localDate: "2026-10-28" }, daysAgo: 14 });
   });
 });
 
@@ -171,6 +171,9 @@ describe("서버에 붙여 HTTP로 호출", () => {
     const bad = await call("POST", "/api/rediscovery/events", "{not json");
     assert.equal(bad.status, 400);
     assert.equal(JSON.parse(bad.body).error.code, "INVALID_REQUEST");
+    const ghost = await call("POST", "/api/rediscovery/events", JSON.stringify({ starId: "없는 별", channel: "card", type: "shown" }));
+    assert.equal(ghost.status, 404, "없는 별 이벤트는 저장하지 않는다");
+    assert.equal(repo.events.length, 1);
   });
 
   it("POST export → Claude 프롬프트", async () => {
