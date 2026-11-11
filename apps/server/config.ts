@@ -27,6 +27,6 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfi
     basePort,
     webDir: env.SPACELOG_WEB_DIR || null,
     devOrigin: env.SPACELOG_DEV_ORIGIN || null,
-    vaultDir: env.SPACELOG_VAULT_DIR || null,
+    vaultDir: env.SPACELOG_VAULT || null,
   };
 }

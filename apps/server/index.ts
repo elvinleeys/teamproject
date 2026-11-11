@@ -1,7 +1,7 @@
 // 로컬 서버 실행 진입점.
 // - 수집 앱(Electron utilityProcess)이 환경 변수로 토큰·포트·경로를 넘겨 켠다 (ADR 0001 5장)
 // - 실제 포트는 { type: "listening", port } 메시지로 알린다. utilityProcess가 아니면 stdout에 한 줄 JSON
-// - 개발: SPACELOG_TOKEN=dev SPACELOG_DEV_ORIGIN=http://localhost:5173 SPACELOG_VAULT_DIR=./.vault node apps/server/index.ts
+// - 개발: SPACELOG_TOKEN=dev SPACELOG_DEV_ORIGIN=http://localhost:5173 SPACELOG_VAULT=./.vault node apps/server/index.ts
 import { routes, startServer } from "./app.ts";
 import { configFromEnv } from "./config.ts";
 import { exportRoutes } from "./routes/export.ts";
